@@ -18,7 +18,6 @@ public class Menu {
 
         content.setBackground(new Color(54, 136, 191));
         content.setLayout(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
 
         JButton play = new JButton("PLAY");
         play.setPreferredSize(new Dimension(100,50));

@@ -1,93 +1,212 @@
 package Model;
 
-public class Model {
+import View.GameField;
 
-    public enum FigTypes {
-        NoShape, Stick, Square, TShape, LShape, Zigzag, MirroredLShape
-    }
+import java.io.IOException;
+import java.util.Date;
+import java.util.Observable;
+import java.util.Timer;
+import java.util.TimerTask;
 
-    private int[][] coords;
-    private int [][][] coordsTable;
-    private FigTypes pieceShape;
-    public int figType;
+public class Model extends Observable {
+    public boolean paused = false;
+    private boolean falled = false;
+    public boolean started = false;
+    public int score = 0;
+    private Timer timer;
+    private int boardHeight;
+    private int boardWidth;
+    private GameField field;
+    public int curX = 0;
+    public int curY = 0;
 
-    public Model() {
-        coords = new int[4][2];
-        coordsTable = new int[][][]
-        {
-                {{0, 0}, {0, 0}, {0, 0}, {0, 0}},
-                {{0, -1}, {0, 0}, {0, 1}, {0, 2}},
-                {{0, 0}, {1, 0}, {0, 1}, {1, 1}},
-                {{-1, 0}, {0, 0}, {1, 0}, {0, 1}},
-                {{1, -1}, {0, -1}, {0, 0}, {0, 1}},
-                {{-1, 1}, {-1, 0}, {0, 0}, {0, -1}},
-                {{-1, -1}, {0, -1}, {0, 0}, {0, 1}}
-        };
-        setPieceShape(FigTypes.NoShape);
-    }
+    public GameFig currentFig;
+    private GameFig.FigTypes[] board;
 
-    public void setPieceShape(FigTypes pieceShape) {
-        for (int i = 0; i < 4 ; i++) {
-            System.arraycopy(coordsTable[pieceShape.ordinal()][i], 0, coords[i], 0, 2);
+    TimerTask task = new TimerTask() {
+        @Override
+        public void run() {
+            try {
+                game();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            } catch (ClassNotFoundException ex) {
+                ex.printStackTrace();
+            }
         }
-        this.pieceShape = pieceShape;
+    };
+
+
+    public Model(int width, int height, GameField field) {
+        this.boardHeight = height;
+        this.boardWidth = width;
+        this.field = field;
+        currentFig = new GameFig();
+        timer = new Timer();
+        addObserver(field);
+        board = new GameFig.FigTypes[boardWidth*boardHeight];
+
+        clear();
     }
 
-    private void setX(int index, int x) {
-        coords[index][0] = x;
+    public void start() throws IOException, ClassNotFoundException {
+        if(paused) return;
+        started = true;
+        falled = false;
+        score = 0;
+        clear();
+        newFig();
+        timer.schedule(task, new Date(), 1000);
     }
 
-    private void setY(int index, int y) {
-        coords[index][1] = y;
+    public void pause() {
+        if(!started) return;
+        this.timer.cancel();
+        paused = true;
+    }
+    public void unpause() {
+        this.timer = new Timer();
+        this.timer.schedule(task, new Date(), 1000);
+        paused = false;
+        setChanged();
+        notifyObservers();
     }
 
-    public int x(int index) {
-        return coords[index][0];
+    public GameFig.FigTypes figHere(int x, int y) {
+        return board[(y*boardWidth) + x];
     }
 
-    public int y(int index) {
-        return coords[index][1];
-    }
-
-    public Model turn() {
-        if (figType == 2)
-            return this;
-
-        Model result = new Model();
-        result.pieceShape = pieceShape;
-
+    private boolean Move(GameFig newFig, int newX, int newY) {
         for (int i = 0; i < 4; ++i) {
-            result.setX(i, y(i));
-            result.setY(i, -x(i));
+            int x = newX + newFig.x(i);
+            int y = newY - newFig.y(i);
+            if (x < 0 || x >= boardWidth || y < 0 || y >= boardHeight)
+                return false;
+            if (figHere(x, y) != GameFig.FigTypes.NoShape)
+                return false;
         }
-        return result;
+        currentFig = newFig;
+        curX = newX;
+        curY = newY;
+        //field.repaint();
+        setChanged();
+        notifyObservers();
+        return true;
     }
 
-    public void setRandomShape() {
-        figType = 1 + (int)(Math.random() * 6);
-        FigTypes[] values = FigTypes.values();
-        setPieceShape(values[figType]);
+    public void moveRight() {
+        Move(currentFig, curX+1, curY);
     }
 
-    public int minX() {
-        int m = coords[0][0];
-        for (int i = 0; i < 4; i++) {
-            m = Math.min(m, coords[i][0]);
+    public void moveLeft() {
+        Move(currentFig, curX-1, curY);
+    }
+
+    public void moveDown() throws IOException, ClassNotFoundException {
+        if(!Move(currentFig, curX, curY-1)) {
+            figDown();
         }
-        return m;
     }
 
-    public int minY() {
-        int m = coords[0][1];
-        for (int i = 0; i < 4; i++) {
-            m = Math.min(m, coords[i][1]);
+    public void turn() {
+        Move(currentFig.turn(), curX, curY);
+    }
+
+    public void game() throws IOException, ClassNotFoundException {
+        if(falled) {
+            falled = false;
+            newFig();
+        } else {
+            moveDown();
         }
-        return m;
     }
 
-    public FigTypes getPieceShape() {
-        return pieceShape;
+    private void newFig() throws IOException, ClassNotFoundException {
+        currentFig.setRandomShape();
+        curX = boardWidth/2 + 1;
+        curY = boardHeight - 1 + currentFig.minY();
+        if (!Move(currentFig, curX, curY)) {
+            currentFig.setPieceShape(GameFig.FigTypes.NoShape);
+            timer.cancel();
+            started = false;
+            field.GameOver();
+        }
     }
+
+    private void clear() {
+        for (int i = 0; i < boardHeight*boardWidth; ++i) {
+            board[i] = GameFig.FigTypes.NoShape;
+        }
+    }
+
+    /*public void paint(Graphics g, double width, double height) {
+        int squareWidth = (int)width/boardWidth;
+        int squareHeight = (int)height/boardHeight;
+        for (int i = 0; i < boardHeight; ++i) {
+            for (int j = 0; j < boardWidth; ++j) {
+                GameFig.FigTypes shape = figHere(j, boardHeight - i -1);
+                if (shape != GameFig.FigTypes.NoShape)
+                    field.drawSquare(g, j * squareWidth, i * squareHeight, shape);
+            }
+        }
+
+        if (currentFig.getPieceShape() != GameFig.FigTypes.NoShape) {
+            for (int i = 0; i < 4; ++i) {
+                int x = curX + currentFig.x(i);
+                int y = curY - currentFig.y(i);
+                field.drawSquare(g, x * squareWidth, (boardHeight - y - 1) * squareHeight, currentFig.getPieceShape());
+            }
+        }
+    }*/
+
+    private void figDown() throws IOException, ClassNotFoundException {
+        for (int i = 0; i < 4; ++i) {
+            int x = curX + currentFig.x(i);
+            int y = curY - currentFig.y(i);
+            board[(y * boardWidth) + x] = currentFig.getPieceShape();
+        }
+
+        updateField();
+
+        if (!falled) {
+            newFig();
+        }
+    }
+
+    private void updateField() {
+        int fullLines = 0;
+
+        for (int i = boardHeight - 1; i >= 0; --i) {
+            boolean lineIsFull = true;
+
+            for (int j = 0; j < boardWidth; ++j) {
+                if (figHere(j, i) == GameFig.FigTypes.NoShape) {
+                    lineIsFull = false;
+                    break;
+                }
+            }
+
+            if (lineIsFull) {
+                ++fullLines;
+                for (int k = i; k < boardHeight - 1; ++k) {
+                    for (int j = 0; j < boardWidth; ++j)
+                        board[(k * boardWidth) + j] = figHere(j, k + 1);
+                }
+            }
+        }
+
+        if (fullLines > 0) {
+            score += fullLines;
+            falled = true;
+            currentFig.setPieceShape(GameFig.FigTypes.NoShape);
+            //field.repaint();
+            setChanged();
+            notifyObservers();
+        }
+    }
+
+    public GameFig getCurFig () {
+        return currentFig;
+    }
+
 }
-
-
