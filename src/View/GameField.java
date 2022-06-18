@@ -20,6 +20,11 @@ public class GameField extends JPanel implements Observer {
     private Model model;
     private GameFrame frame;
 
+    @Override
+    public void update(Observable o, Object arg) {
+        repaint();
+    }
+
     private int squareWidth() {
         return (int) getSize().getWidth() / boardWidth;
     }
@@ -67,11 +72,6 @@ public class GameField extends JPanel implements Observer {
                 drawSquare(g, x * squareWidth, (boardHeight - y - 1) * squareHeight, currentFig.getPieceShape());
             }
         }
-    }
-
-    @Override
-    public void update(Observable o, Object arg) {
-        repaint();
     }
 
     public void paint(Graphics g) {

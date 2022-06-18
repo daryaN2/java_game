@@ -61,12 +61,12 @@ public class Model extends Observable {
 
     public void pause() {
         if(!started) return;
-        this.timer.cancel();
+        timer.cancel();
         paused = true;
     }
     public void unpause() {
-        this.timer = new Timer();
-        this.timer.schedule(task, new Date(), 1000);
+        timer = new Timer();
+        timer.schedule(task, new Date(), 1000);
         paused = false;
         setChanged();
         notifyObservers();
@@ -88,7 +88,6 @@ public class Model extends Observable {
         currentFig = newFig;
         curX = newX;
         curY = newY;
-        //field.repaint();
         setChanged();
         notifyObservers();
         return true;
@@ -139,26 +138,6 @@ public class Model extends Observable {
         }
     }
 
-    /*public void paint(Graphics g, double width, double height) {
-        int squareWidth = (int)width/boardWidth;
-        int squareHeight = (int)height/boardHeight;
-        for (int i = 0; i < boardHeight; ++i) {
-            for (int j = 0; j < boardWidth; ++j) {
-                GameFig.FigTypes shape = figHere(j, boardHeight - i -1);
-                if (shape != GameFig.FigTypes.NoShape)
-                    field.drawSquare(g, j * squareWidth, i * squareHeight, shape);
-            }
-        }
-
-        if (currentFig.getPieceShape() != GameFig.FigTypes.NoShape) {
-            for (int i = 0; i < 4; ++i) {
-                int x = curX + currentFig.x(i);
-                int y = curY - currentFig.y(i);
-                field.drawSquare(g, x * squareWidth, (boardHeight - y - 1) * squareHeight, currentFig.getPieceShape());
-            }
-        }
-    }*/
-
     private void figDown() throws IOException, ClassNotFoundException {
         for (int i = 0; i < 4; ++i) {
             int x = curX + currentFig.x(i);
@@ -199,7 +178,6 @@ public class Model extends Observable {
             score += fullLines;
             falled = true;
             currentFig.setPieceShape(GameFig.FigTypes.NoShape);
-            //field.repaint();
             setChanged();
             notifyObservers();
         }
